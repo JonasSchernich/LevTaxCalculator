@@ -11,7 +11,6 @@ def calculate_trading_strategy(index='SPX', tax_rate=0.25, lev=1, which_lev='bot
 
     # Dictionary mapping index names to their Yahoo Finance tickers
     index_tickers = {
-        'DAX': '^GDAXI',
         'S&P 500': '^GSPC',
         'Dow Jones': '^DJI',
         'Nasdaq 100': '^NDX'
@@ -118,9 +117,7 @@ def calculate_trading_strategy(index='SPX', tax_rate=0.25, lev=1, which_lev='bot
 def main():
     # Example usage with different leverage scenarios
     test_cases = [
-        {'index': 'S&P 500', 'tax_rate': 0.001, 'lev': 3, 'which_lev': 'index'},
-        {'index': 'S&P 500', 'tax_rate': 0.001, 'lev': 3, 'which_lev': 'gold'},
-        {'index': 'S&P 500', 'tax_rate': 0.25, 'lev': 3, 'which_lev': 'both'}
+        {'index': 'S&P 500', 'tax_rate': 0.001, 'lev': 3, 'which_lev': 'index'}
     ]
 
     for case in test_cases:
