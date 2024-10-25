@@ -4,7 +4,11 @@ import numpy as np
 from datetime import datetime
 
 
-def calculate_trading_strategy(index='SPX', tax_rate=0.25, lev=1):
+def calculate_trading_strategy(index='SPX', tax_rate=0.25, lev=1, which_lev='both'):
+    # Validate inputs
+    if which_lev not in ['index', 'gold', 'both']:
+        raise ValueError("which_lev must be 'index', 'gold', or 'both'")
+
     # Dictionary mapping index names to their Yahoo Finance tickers
     index_tickers = {
         'DAX': '^GDAXI',
@@ -24,7 +28,7 @@ def calculate_trading_strategy(index='SPX', tax_rate=0.25, lev=1):
     # Get index data
     index_data = yf.download(index_tickers[index], start=start_date, end=end_date)['Close']
 
-    # Get gold data (GLD ETF as proxy)
+    # Get gold data
     gold_data = yf.download('GC=F', start=start_date, end=end_date)['Close']
 
     # Create initial dataframe
@@ -39,9 +43,20 @@ def calculate_trading_strategy(index='SPX', tax_rate=0.25, lev=1):
     # Remove rows with NaN values in MA column
     df = df.dropna()
 
-    # Calculate daily returns
+    # Calculate daily returns (normal and leveraged)
     df['index_return'] = df['index_price'].pct_change()
     df['gold_return'] = df['gold_price'].pct_change()
+
+    # Add leveraged returns based on which_lev parameter
+    if which_lev in ['index', 'both']:
+        df['index_lev'] = df['index_return'] * lev
+    else:
+        df['index_lev'] = df['index_return']
+
+    if which_lev in ['gold', 'both']:
+        df['gold_lev'] = df['gold_return'] * lev
+    else:
+        df['gold_lev'] = df['gold_return']
 
     # Remove first row which will have NaN returns
     df = df.dropna()
@@ -49,8 +64,12 @@ def calculate_trading_strategy(index='SPX', tax_rate=0.25, lev=1):
     # Initialize portfolio value column
     df['portfolio_value'] = 100
 
-    # Determine which asset to hold based on MA strategy
-    df['position'] = np.where(df['index_price'].shift(1) < df['ma_200'], 'gold', 'index')
+    # Determine position: index or gold - using previous day's comparison
+    df['ma_signal'] = np.where(df['index_price'] < df['ma_200'], 'gold', 'index')
+    df['position'] = df['ma_signal'].shift(1)  # Shift by 1 to implement next-day trading
+
+    # For the first position, use the first signal
+    df['position'].iloc[0] = df['ma_signal'].iloc[0]
 
     # Initialize variables for tracking regime changes
     last_regime_change_idx = 0
@@ -62,11 +81,11 @@ def calculate_trading_strategy(index='SPX', tax_rate=0.25, lev=1):
         current_position = df['position'].iloc[i]
         prev_position = df['position'].iloc[i - 1]
 
-        # Determine which return to use
+        # Determine daily return based on position and leverage settings
         if current_position == 'gold':
-            daily_return = df['gold_return'].iloc[i]
-        else:
-            daily_return = df['index_return'].iloc[i]
+            daily_return = df['gold_lev'].iloc[i]
+        else:  # position is 'index'
+            daily_return = df['index_lev'].iloc[i]
 
         # Calculate new portfolio value before tax consideration
         new_value = df['portfolio_value'].iloc[i - 1] * (1 + daily_return)
@@ -97,13 +116,17 @@ def calculate_trading_strategy(index='SPX', tax_rate=0.25, lev=1):
 
 
 def main():
-    # Example usage
-    avg_yearly_return = calculate_trading_strategy(
-        index='S&P 500',
-        tax_rate=0,
-        lev=1
-    )
-    print(f"Average yearly return: {avg_yearly_return:.2%}")
+    # Example usage with different leverage scenarios
+    test_cases = [
+        {'index': 'S&P 500', 'tax_rate': 0.001, 'lev': 3, 'which_lev': 'index'},
+        {'index': 'S&P 500', 'tax_rate': 0.001, 'lev': 3, 'which_lev': 'gold'},
+        {'index': 'S&P 500', 'tax_rate': 0.25, 'lev': 3, 'which_lev': 'both'}
+    ]
+
+    for case in test_cases:
+        avg_yearly_return = calculate_trading_strategy(**case)
+        print(f"Strategy with {case['which_lev']} leverage ({case['lev']}x):")
+        print(f"Average yearly return: {avg_yearly_return:.2%}\n")
 
 
 if __name__ == "__main__":
