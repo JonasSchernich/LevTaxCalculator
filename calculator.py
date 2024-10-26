@@ -117,7 +117,7 @@ def calculate_trading_strategy(index='SPX', tax_rate=0.25, lev=1, which_lev='bot
 def main():
     # Example usage with different leverage scenarios
     test_cases = [
-        {'index': 'S&P 500', 'tax_rate': 0.001, 'lev': 3, 'which_lev': 'index'}
+        {'index': 'S&P 500', 'tax_rate': 0.00, 'lev': 2, 'which_lev': 'both'}
     ]
 
     for case in test_cases:
